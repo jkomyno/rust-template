@@ -4,6 +4,8 @@ min_version = "2026.9.2"
 # Keep mbx ahead of Rust's Cargo bin directory in PATH.
 mr-boxington = "1.26.0"
 rust = { version = "1.100.0", profile = "minimal", components = ["clippy", "rustfmt"], mr_boxington = true }
+cargo-dist = "0.34.0"
+actionlint = "1.7.12"
 
 [tasks.check]
 description = "Check formatting, lints, tests, and documentation"
@@ -14,3 +16,16 @@ run = [
     "cargo test --locked",
     "cargo doc --locked --no-deps",
 ]
+
+[tasks.check-release]
+description = "Validate workflows and binary packaging configuration"
+run = [
+    "actionlint",
+    "dist generate --check",
+    "dist plan",
+]
+
+[tasks.release-plz]
+description = "Run the pinned release controller (Linux or macOS arm64)"
+tools = { release-plz = "0.4.3" }
+run = "release-plz"

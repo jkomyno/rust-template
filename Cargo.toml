@@ -8,6 +8,9 @@ repository = "https://github.com/jkomyno/rust-template"
 license = "MIT"
 publish = false
 
+[package.metadata.dist]
+dist = true
+
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
@@ -16,3 +19,7 @@ missing_docs = "warn"
 dbg_macro = "warn"
 todo = "warn"
 unimplemented = "warn"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"

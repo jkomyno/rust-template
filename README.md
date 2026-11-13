@@ -13,6 +13,7 @@ in [`mise.toml`](mise.toml).
 - [Getting started](#getting-started)
 - [What's included](#whats-included)
 - [Available commands](#available-commands)
+- [Releases](#releases)
 - [Coding agents](#coding-agents)
 - [Contributing](#contributing)
 - [License](#license)
@@ -31,8 +32,8 @@ in [`mise.toml`](mise.toml).
 | Other Linux distributions | Install the distribution's C compiler, linker, and development headers. |
 | Windows | Visual Studio Build Tools with **Desktop development with C++**, including the Windows SDK. |
 
-mise installs Rust, rustup, rustfmt, Clippy, and the configured Mr Boxington
-release. The first installation needs network access. Nix is not used.
+mise installs Rust, rustup, rustfmt, Clippy, Mr Boxington, and the pinned release
+and workflow tools. The first installation needs network access. Nix is not used.
 
 On Windows, enable Developer Mode and clone with `git -c core.symlinks=true clone <repository-url>`
 to preserve the shared agent-skill links.
@@ -59,7 +60,7 @@ Make the template yours:
 1. Rename the package in `Cargo.toml` and the `rust_template` imports in `src/`.
 2. Update this README and the package description. Run `mise exec -- cargo check` to refresh `Cargo.lock`.
 3. Replace `greeting` with your API. Keep process I/O in `src/main.rs`.
-4. Before publishing, set your repository URL, review the MIT license, and remove `publish = false`.
+4. Set your repository URL and review the MIT license. Keep `publish = false` for binary-only GitHub releases.
 
 For a library only, delete `src/main.rs`. For a binary only, delete `src/lib.rs`
 and replace its call in `src/main.rs`. Add other executables under `src/bin/`.
@@ -82,14 +83,15 @@ Introduce a workspace when you need independently versioned or published package
 - **Shared agent instructions and skills**, including idiomatic Rust writing
   and review guidance from [BeautifulRust](https://github.com/morganlinton/BeautifulRust).
 
-Rust uses its default build profiles. No remote compilation cache or release
-automation is configured. Add dependencies and tooling when the project needs them.
+Rust uses its default build settings; dist's named build profile inherits
+`release` without additional optimizations. No remote compilation cache is configured.
 
 ## Available commands
 
 | Command | Purpose |
 | --- | --- |
 | `mise run check` | Run all required stable-Rust checks. |
+| `mise run check-release` | Validate workflows and release packaging. |
 | `mise exec -- cargo run` | Run the binary. |
 | `mise exec -- cargo build --release` | Build optimized library and binary targets. |
 | `mise exec -- cargo fmt --all` | Format Rust source. |
@@ -100,6 +102,33 @@ automation is configured. Add dependencies and tooling when the project needs th
 Use `mise exec -- cargo ...` in terminals, editors, and agent sessions to select
 the repository's tools and Cargo wrapper. Plain Cargo commands also work in a
 [mise-activated shell](https://mise.jdx.dev/installing-mise.html#shells).
+
+## Releases
+
+[release-plz](https://release-plz.dev/) opens a PR with version bumps and a
+`CHANGELOG.md` generated from Conventional Commits. Use Conventional Commit PR
+titles and squash merges. After a release PR merges and CI passes, release-plz
+creates the version tag and dispatches the binary workflow. dist packages macOS
+arm64/x64, Linux x64, and Windows x64 binaries and checksums into a GitHub Release.
+Pull requests build the same platform archives as downloadable Actions artifacts.
+
+Enable **Settings → Actions → General → Allow GitHub Actions to create and
+approve pull requests** in your repository before the first merge. The workflows
+use `GITHUB_TOKEN`; no personal token or crates.io credentials are needed.
+`publish = false` continues to disable crates.io publication.
+
+After the first stable release is published, install it with:
+
+```sh
+mise use -g github:jkomyno/rust-template@latest
+```
+
+The `github:` prefix allows installation without a mise registry entry. When
+copying this template, update `Cargo.toml`'s repository URL and this command.
+PR artifacts can be downloaded from the **Binaries** workflow; they are separate
+from GitHub Releases. Per-commit snapshot releases are not configured.
+
+See [Contributing](CONTRIBUTING.md#release-workflow) for release checks and recovery.
 
 ## Coding agents
 

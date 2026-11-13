@@ -3,12 +3,13 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -27,6 +28,7 @@ jobs:
           mise exec -- rustc --version
           mise exec -- mbx --version
       - run: mise run check
+      - run: mise run check-release
 
   msrv:
     name: Rust 1.85 (MSRV)

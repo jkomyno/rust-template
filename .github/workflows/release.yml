@@ -1,0 +1,109 @@
+name: Binaries
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: binaries-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      BUILD_TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release source
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - name: Build platform archive and checksum
+        id: package
+        run: |
+          args=()
+          if [[ -n "$RELEASE_TAG" ]]; then
+            args+=(--tag "$RELEASE_TAG")
+          fi
+          mise exec -- dist build --artifacts=local --target "$BUILD_TARGET" "${args[@]}" --output-format=json > dist-manifest.json
+          cp dist-manifest.json "target/distrib/$BUILD_TARGET-dist-manifest.json"
+          {
+            echo 'paths<<EOF'
+            mise exec -- dist print-upload-files-from-manifest --manifest dist-manifest.json
+            echo "target/distrib/$BUILD_TARGET-dist-manifest.json"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: binary-${{ matrix.target }}
+          path: ${{ steps.package.outputs.paths }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: binary-*
+          path: target/distrib
+          merge-multiple: true
+      - name: Build source archive, checksums, and release notes
+        run: |
+          mise exec -- dist build --artifacts=global --tag "$RELEASE_TAG" --output-format=json > global-dist-manifest.json
+          mise exec -- dist host --steps=upload --steps=release --tag "$RELEASE_TAG" --output-format=json > dist-manifest.json
+          cp dist-manifest.json target/distrib/dist-manifest.json
+          jq -r '.announcement_github_body' target/distrib/dist-manifest.json > "$RUNNER_TEMP/release-notes.md"
+          (cd target/distrib && sha256sum --check sha256.sum)
+      - name: Publish the complete release
+        run: |
+          mapfile -t assets < <(jq -r '.releases[].artifacts[] | "target/distrib/" + .' target/distrib/dist-manifest.json)
+          assets+=(target/distrib/dist-manifest.json)
+          title=$(jq -r '.announcement_title' target/distrib/dist-manifest.json)
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "$title" --notes-file "$RUNNER_TEMP/release-notes.md" "${assets[@]}"
+          gh release edit "$RELEASE_TAG" --draft=false --latest

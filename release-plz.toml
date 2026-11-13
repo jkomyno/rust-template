@@ -1,0 +1,7 @@
+[workspace]
+git_only = true
+release_always = false
+git_release_enable = false
+git_tag_name = "v{{ version }}"
+# Binary releases use Conventional Commits rather than library API comparison.
+semver_check = false
