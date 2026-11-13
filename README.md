@@ -67,7 +67,7 @@ Introduce a workspace when you need independently versioned or published package
 
 ## What's included
 
-- **Rust 2024**, with current stable Rust selected by mise. The minimum supported
+- **Rust 2024**, with Rust **1.100.0** pinned in mise. The minimum supported
   Rust version (MSRV) is **1.85**, tested separately in CI.
 - **Library and binary targets** in [`src/lib.rs`](src/lib.rs) and
   [`src/main.rs`](src/main.rs), discovered automatically by Cargo.

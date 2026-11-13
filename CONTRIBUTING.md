@@ -12,7 +12,7 @@ mise run check
 ```
 
 Use mise for both development and CI. Nix is not part of the toolchain.
-`mise.toml` selects stable Rust and a specific Mr Boxington release.
+`mise.toml` pins Rust 1.100.0 and a specific Mr Boxington release.
 `Cargo.toml` declares the minimum supported Rust version, currently 1.85.
 
 ## Make a change
@@ -70,8 +70,8 @@ directly. A remote compilation cache is not configured.
 ## Update tools and skills
 
 Change tool selections in `mise.toml`, then run `mise install rust mr-boxington`
-and `mise run check`. Stable Rust follows a moving channel. Pin an exact Rust
-release there if your project needs a fixed compiler.
+and `mise run check`. Keep Rust pinned to an exact release so local development
+and CI use the same compiler, and update the documented version alongside it.
 
 If the MSRV changes, update `Cargo.toml`, the CI job, and the documented commands
 in README, AGENTS, and this file together. Test the new minimum toolchain.

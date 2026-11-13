@@ -33,7 +33,9 @@ Where they disagree, this file says which to follow and why.
 
 ## 2. Before you hand back code
 
-Run these and fix everything they report:
+Follow the repository's verification commands. In this template, run `mise run check`;
+run individual Cargo commands through `mise exec -- cargo ...` so the pinned toolchain
+and Mr Boxington are used. For repositories without a prescribed check, use:
 
 ```bash
 cargo fmt
@@ -41,6 +43,13 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test
 cargo doc --no-deps   # libraries: catches broken doc links and missing docs
 ```
+
+- Read `rust-version` in `Cargo.toml` before using newly stabilized syntax or APIs.
+  The development compiler can be newer than the MSRV; upgrading it does not by itself
+  authorize raising the minimum. Test compatibility changes on the declared MSRV.
+- Cargo's build-directory layout changed in Rust 1.100. Avoid depending on internal
+  artifact paths; verify cache wrappers when upgrading. Let Mr Boxington manage this
+  template's build storage, as described in `AGENTS.md`.
 
 - Fix a lint rather than silencing it. When a lint is genuinely wrong for one item, use
   `#[expect(clippy::name, reason = "...")]` on the narrowest item. `expect` warns when
