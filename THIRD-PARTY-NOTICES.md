@@ -5,13 +5,16 @@
 - Source: https://github.com/morganlinton/BeautifulRust
 - Revision: `edd3e86087eda07983251056508fe3b8856d85d7` (retrieved 2026-11-07).
 - Vendored: `skills/rust-best-practices/SKILL.md`, its `references/` directory,
-  and `skills/rust-review/SKILL.md`, unchanged under `.agents/skills/`.
+  and `skills/rust-review/SKILL.md`, under `.agents/skills/`.
+- Local adjustments: `rust-best-practices/SKILL.md` uses the repository's mise checks
+  and documents MSRV compatibility and Cargo 1.100 build-directory considerations.
 - Excluded: eval fixtures, other skills, plugins, scripts, and lint configuration.
 - License: MIT, reproduced below. The reference digests link to their original sources.
 
 To update, inspect a specific upstream commit and its license. Replace only the
-vendored files listed above, review the diff, verify relative reference paths and
-Claude's links, and update this revision. Never install a second copy in an
+vendored files listed above, preserve applicable local adjustments, review the diff,
+verify relative reference paths and Claude's links, and update this revision.
+Never install a second copy in an
 agent-specific skills directory.
 
 ```text

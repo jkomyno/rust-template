@@ -1,0 +1,78 @@
+name: Release-plz
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GIT_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - name: Configure release commits
+        run: |
+          git switch -C main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Tag a merged release PR and start binary builds
+        run: |
+          mise run release-plz -- release --output json > "$RUNNER_TEMP/releases.json"
+          tag=$(jq -r '.releases[0].tag // empty' "$RUNNER_TEMP/releases.json")
+          if [[ -n "$tag" ]]; then
+            gh workflow run release.yml --ref main -f "tag=$tag"
+          fi
+
+  release-pr:
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-plz-pr
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GIT_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - name: Configure release commits
+        run: |
+          git switch -C main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Prepare the next release PR
+        run: |
+          mise run release-plz -- release-pr --output json > "$RUNNER_TEMP/release-pr.json"
+          branch=$(jq -r '.prs[0].head_branch // empty' "$RUNNER_TEMP/release-pr.json")
+          if [[ -n "$branch" ]]; then
+            # GITHUB_TOKEN pushes do not trigger ordinary PR checks.
+            gh workflow run ci.yml --ref "$branch"
+          fi

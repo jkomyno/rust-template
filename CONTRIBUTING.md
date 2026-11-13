@@ -12,7 +12,7 @@ mise run check
 ```
 
 Use mise for both development and CI. Nix is not part of the toolchain.
-`mise.toml` selects stable Rust and a specific Mr Boxington release.
+`mise.toml` pins Rust 1.100.0 and a specific Mr Boxington release.
 `Cargo.toml` declares the minimum supported Rust version, currently 1.85.
 
 ## Make a change
@@ -48,8 +48,9 @@ mise exec -- cargo +1.85.0 test --locked
 ```
 
 Both [CI jobs](.github/workflows/ci.yml) install tools with mise and run Cargo
-through Mr Boxington. CI currently runs on Linux. Check platform-specific changes
-on the affected platform and report what you tested.
+through Mr Boxington. The **Binaries** workflow also packages macOS arm64/x64,
+Linux x64, and Windows x64. Check platform-specific changes on the affected
+platform and report what you tested.
 
 ## Manage dependencies and build storage
 
@@ -69,9 +70,9 @@ directly. A remote compilation cache is not configured.
 
 ## Update tools and skills
 
-Change tool selections in `mise.toml`, then run `mise install rust mr-boxington`
-and `mise run check`. Stable Rust follows a moving channel. Pin an exact Rust
-release there if your project needs a fixed compiler.
+Change tool selections in `mise.toml`, then run `mise install`
+and `mise run check`. Keep Rust pinned to an exact release so local development
+and CI use the same compiler, and update the documented version alongside it.
 
 If the MSRV changes, update `Cargo.toml`, the CI job, and the documented commands
 in README, AGENTS, and this file together. Test the new minimum toolchain.
@@ -88,5 +89,54 @@ for a bug fix. Note any checks you could not run and any public API or MSRV chan
 Use small Conventional Commits, such as `fix: preserve empty input`.
 
 Measure representative workloads before claiming a performance improvement.
-Publishing remains disabled until the package metadata and release process are
-configured for the project.
+crates.io publishing remains disabled by `publish = false`.
+
+## Release workflow
+
+Run `mise run check-release` after changing a workflow or packaging configuration.
+It runs actionlint and validates dist's configuration. To inspect a local archive:
+
+```sh
+mise exec -- dist build --artifacts=local --target <your-host-triple>
+```
+
+The release tools are pinned in `mise.toml`; keep the dist version there and in
+`dist-workspace.toml` aligned. `dist-workspace.toml` describes distribution only;
+the project remains a single Cargo package. CI is maintained in `.github/workflows/`
+to use mise and Mr Boxington throughout. dist's CI generation is disabled.
+release-plz is scoped to `mise run release-plz -- <command>` so packaging runners
+do not install the controller. Its pinned release has no Intel macOS binary.
+The Intel macOS archive is cross-compiled on Apple Silicon because Mr Boxington
+also has no Intel macOS release asset. The build installs the requested Rust target.
+
+`release-plz.toml` enables git-only version detection and releases only after
+merging a release PR. Its `[workspace]` section also applies to a single package.
+Conventional Commit subjects determine version bumps and changelog categories;
+review the generated release PR before merging. The first release is `0.1.0`.
+Later releases compare against matching `v<version>` tags.
+Library API comparison is disabled for this binary release flow; declare breaking
+changes with `!` or a `BREAKING CHANGE:` footer in the Conventional Commit.
+
+Enable **Allow GitHub Actions to create and approve pull requests** in the
+repository's Actions settings. The read-only **CI** workflow must succeed on a
+push to `main` before **Release-plz** runs. PR code never runs in that privileged
+workflow. Bot-created release PRs receive an explicit **CI** dispatch because
+`GITHUB_TOKEN` pushes do not trigger normal PR workflows. Stable tags likewise
+receive an explicit **Binaries** dispatch. Only that workflow publishes releases,
+after every platform build and checksum verification succeeds.
+Main-branch CI runs are preserved so a later push cannot cancel the check that
+triggers a release. Tagging runs separately from the serialized, rolling release
+PR updates. Tagging uses the exact checked commit; PR preparation starts from
+the latest `main`, and the resulting release PR receives its own checks.
+
+If tagging succeeds but a binary build fails, rerun the failed **Binaries** run,
+or dispatch it from `main` with the existing tag. The tag must name a commit
+reachable from `main`, and its version must match `Cargo.toml`. If publication
+left a draft, inspect and delete that incomplete draft before rerunning; keep
+the tag. Never replace assets on an already-published stable release: fix the
+problem and release a new version. If PR creation fails, check the repository
+setting above, then rerun **Release-plz**.
+
+After the first release, verify installation using the command in the README
+on each supported platform. Before that release exists, local archive checks
+and PR artifacts prove packaging; they do not prove hosted mise installation.
