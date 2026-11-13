@@ -106,6 +106,8 @@ the project remains a single Cargo package. CI is maintained in `.github/workflo
 to use mise and Mr Boxington throughout. dist's CI generation is disabled.
 release-plz is scoped to `mise run release-plz -- <command>` so packaging runners
 do not install the controller. Its pinned release has no Intel macOS binary.
+The Intel macOS archive is cross-compiled on Apple Silicon because Mr Boxington
+also has no Intel macOS release asset. The build installs the requested Rust target.
 
 `release-plz.toml` enables git-only version detection and releases only after
 merging a release PR. Its `[workspace]` section also applies to a single package.

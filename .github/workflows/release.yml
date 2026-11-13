@@ -30,7 +30,7 @@ jobs:
           - target: aarch64-apple-darwin
             runner: macos-15
           - target: x86_64-apple-darwin
-            runner: macos-15-intel
+            runner: macos-15
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-22.04
           - target: x86_64-pc-windows-msvc
@@ -51,6 +51,8 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git merge-base --is-ancestor HEAD origin/main
       - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+      - name: Install the build target
+        run: mise exec -- rustup target add "$BUILD_TARGET"
       - name: Build platform archive and checksum
         id: package
         run: |
